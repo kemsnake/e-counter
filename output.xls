@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">
+<Worksheet ss:Name="Отчет">
+<Table>
+<Column ss:Index="1" ss:AutoFitWidth="0" ss:Width="110"/>
+<Row>
+<Cell ss:StyleID="th"><Data ss:Type="String">Дата</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">G1</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">G2</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">G3</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">M1</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">M2</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">M3</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">Q</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">V1</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">V2</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">V3</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">dt</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">t1</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">t2</Data></Cell>
+<Cell ss:StyleID="th"><Data ss:Type="String">Ти</Data></Cell>
+</Row>
+
+<Row>
+<Cell ss:StyleID="td"><Data ss:Type="String">11.01.2014</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">0</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">0</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">0</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">188.6477</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">192.2259</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">-3.5782</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">4.9482</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">190.602</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">192.544</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">0</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">0</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">-238.7639</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">-238.7639</Data></Cell>
+<Cell ss:StyleID="td"><Data ss:Type="String">540.6167</Data></Cell>
+</Row>
+</Table>
+</Worksheet>
+</Workbook>

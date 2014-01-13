@@ -1,0 +1,533 @@
+<?php
+
+/**
+ * @file
+ * Ecounter functionality.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function e_counter_menu() {
+  $items['admin/config/e_counter'] = array(
+    'title' => 'E-counter settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('e_counter_settings_form'),
+    'access arguments' => array('administer site configuration'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_entity_view().
+ */
+function e_counter_node_view($node, $view_mode = 'full', $langcode = NULL) {
+  if ($node->type == 'device'){
+    drupal_add_css(drupal_get_path('module', 'e_counter') . '/e_counter.css');
+    drupal_add_js(drupal_get_path('module', 'e_counter') . '/e_counter.js');
+    $device_ip = $node->field_device_ip['und'][0]['value'];
+    $device_id = $node->field_device_id['und'][0]['value'];
+    $device_category = $node->field_device_category['und'][0]['tid'];
+    $node->content['parameters_form'] = drupal_get_form('_e_counter_get_parameters_form', $device_ip, $device_id, $device_category, $node->nid);
+    $node->content['parameters_form']['#weight'] = '10';
+  }
+
+}
+
+function _e_counter_get_parameters_form($form, &$form_state, $device_ip, $device_id, $device_category, $device_nid){
+  $form = array();
+
+  $form['device_ip'] = array(
+    '#type' => 'value',
+    '#value' => $device_ip
+  );
+  $form['device_id'] = array(
+    '#type' => 'value',
+    '#value' => $device_id
+  );
+  $form['device_nid'] = array(
+    '#type' => 'value',
+    '#value' => $device_nid
+  );
+  $form['device_category_' . $device_id] = array(
+    '#type' => 'value',
+    '#value' => $device_category
+  );
+
+  $options = array();
+  // Загружаем параметры доступные для данного типа прибора
+  $term_device_category = taxonomy_term_load($device_category);
+  foreach ($term_device_category->field_device_parameters['und'] as $parameter_tid){
+    $parameter = taxonomy_term_load($parameter_tid['tid']);
+    $options[$parameter->tid] = $parameter->name;
+  }
+  asort($options);
+
+  $form['parameters_' . $device_id] = array(
+    '#type' => 'checkboxes',
+    '#title' => 'Показатели',
+    '#options' => $options,
+    '#default_value' => array_keys($options),
+    '#multicolumn' => array('width' => 3),
+    '#checkall' => TRUE,
+  );
+
+  $form['device_archive_page_size_' . $device_id] = array(
+    '#type' => 'value',
+    '#value' => $term_device_category->field_archive_page_size['und'][0]['value']
+  );
+
+  $form['device_current_page_size_' . $device_id] = array(
+    '#type' => 'value',
+    '#value' => $term_device_category->field_current_page_size['und'][0]['value']
+  );
+
+  $form['period_' . $device_id] = array(
+    '#type' => 'radios',
+    '#title' => 'Вывести данные за',
+    '#options' => array(
+      'current' => 'Текущие',
+      '1' => 'Сутки',
+      '2' => 'Неделя',
+      '3' => 'Месяц',
+      '4' => 'Год',
+    ),
+    '#default_value' => '1',
+    '#multicolumn' => array('width' => 5),
+  );
+
+  $form['period_date_' . $device_id] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Выберите дату',
+    '#title_display' => 'before',
+    '#date_label_position' => 'within',
+    '#date_description' => '',
+    '#default_value' => date('Y-m-d H:i:s', REQUEST_TIME),
+    '#date_format' => 'd.m.Y',
+    '#size' => 10,
+  );
+
+  $form['output_type_' . $device_id] = array(
+    '#type' => 'radios',
+    '#title' => 'Вывести как',
+    '#options' => array(
+      'table' => 'Таблица',
+      'graph' => 'График',
+      'xls' => 'Эксель',
+    ),
+    '#default_value' => 'table',
+    '#multicolumn' => array('width' => 3),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Показать'),
+    '#ajax' => array(
+      'callback' => '_e_counter_get_device_parameters_ajax',
+      'wrapper' => 'parameters_table_wrapper_' . $device_id,
+      'method' => 'replace',
+      'effect' => 'fade',
+    ),
+  );
+
+
+  $form['parameters_table-wrapper-' . $device_id] = array(
+    '#prefix' => '<div id="parameters_table_wrapper_' . $device_id . '">',
+    '#suffix' => '</div>',
+    '#type' => 'markup',
+  );
+
+  return $form;
+}
+
+//ajax form call back function
+function _e_counter_get_device_parameters_ajax($form, &$form_state) {
+  $output = '';
+  $device_ip = $form_state['values']['device_ip'];
+  $device_id = $form_state['values']['device_id'];
+  $device_nid = $form_state['values']['device_nid'];
+  $device_category = $form_state['values']['device_category_' . $device_id];
+  $device_current_page_size = $form_state['values']['device_current_page_size_' . $device_id];
+  $device_archive_page_size = $form_state['values']['device_archive_page_size_' . $device_id];
+  $period = $form_state['values']['period_' . $device_id];
+  $date = $form_state['values']['period_date_' . $device_id];
+  $device_parameters = $form_state['values']['parameters_' . $device_id];
+  $device_parameters = array_filter($device_parameters);
+
+  if (empty($device_parameters)){
+    $output = 'Не выбрано ни одного параметра для отображения';
+  }
+  else{
+    $data = _e_counter_request_device_parameters($device_ip, $device_id, $device_category, $device_current_page_size, $device_archive_page_size, $device_parameters, $period, $date);
+    if (!isset($data['error'])){
+      $headers = _e_counter_get_parameter_names($device_parameters);
+      $output_type = $form_state['values']['output_type_' . $device_id];
+      if (($output_type == 'table') || ($output_type == 'xls')){
+        //добавляем загловок даты первым элементом
+        $header['date'] = 'Дата';
+        foreach ($headers as $key => $value){
+          $header[$key] = $value;
+        }
+        //создаем массив строк данных, согласно сортировке загловков
+        $rows = array();
+        $i = 0;
+        foreach ($data as $key => $row){
+          $rows[$i]['date'] = $row['date'];
+          //вытаскиваем данные
+          foreach ($header as $tid => $term_name){
+            if (isset($row[$tid])){
+              $rows[$i][$tid] = $row[$tid];
+            }
+          }
+          ++$i;
+        }
+        //убираем заголовки данных по которым нет (не все данные храняться в архивах)
+        $header = array_intersect_key($header, $rows[0]);
+        if ($output_type == 'table'){
+          $output = theme('table', array(
+            'rows' => $rows,
+            'header' => $header,
+          ));
+        }
+        else {
+          $output = 'XLS файл создан. <br>';
+          libraries_load('php-excel');
+          $xls = new Excel_XML('UTF-8', TRUE, 'Отчет');
+          $xls->addHeader(_e_counter_create_xls_header($device_nid, $date));
+          $xls->addArray(array($header), 'th');
+          $xls->addArray($rows, 'td');
+
+          $filepath = variable_get('file_public_path', conf_path() . '/files') . '/output.xls';
+          //$xls->generateAndSaveXML($_SERVER['DOCUMENT_ROOT'] . '/', 'output.xls');
+          $xls->generateAndSaveXML($filepath);
+          $output .= l(('Скачать файл'), $filepath) . '<br>';
+        }
+      }
+      else {
+        $rows = array();
+        foreach ($data as $key => $row){
+          $x_axis[] = format_date($key);
+          foreach ($row as $key => &$row){
+            //$row = array_merge($x_axis[$key], $row);
+            $rows = $row;
+          }
+        }
+
+        $rows = array_combine(array_values($header), array_values($rows));
+        $chart = array(
+          '#chart_id' => 'test_chart',
+          '#title' => t('Показания прибора'),
+          '#type' => CHART_TYPE_LINE,
+          '#size' => array(
+            '#width' => 600,
+            '#height' => 400,
+          ),
+        );
+
+        foreach ($header as $par){
+          $chart['#data_colors'][] = chart_unique_color($par);
+        }
+        $chart['#data'] = $rows;
+
+        $chart['#legends'] = $header;
+
+        $i = 1;
+        while ($i <= 6) {
+          $chart['#mixed_axis_labels'][CHART_AXIS_X_BOTTOM][1][] = chart_mixed_axis_label(format_date(REQUEST_TIME - $i*3600*24, 'custom', 'd.m.Y'));
+          ++$i;
+        }
+        $chart['#mixed_axis_labels'][CHART_AXIS_X_BOTTOM][2][] = chart_mixed_axis_label(t('Даты'), 50);
+        $chart['#mixed_axis_labels'][CHART_AXIS_Y_LEFT][0][] = chart_mixed_axis_range_label(0, max($rows));
+        $chart['#mixed_axis_labels'][CHART_AXIS_Y_LEFT][1][] = chart_mixed_axis_label(t('Значение'), 95);
+
+        $output = theme('chart', array('chart' => $chart));
+      }
+
+      $output .= 'Время выполнения: ' . round((timer_read('timer') / 1000), 2) . ' секунд.';
+    }
+    else {
+      $output .= $data['error'];
+    }
+  }
+  $commands = array();
+  $commands[] = ajax_command_html('#parameters_table_wrapper_' . $device_id, $output);
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+
+function _e_counter_get_object_from_tid($device_nid){
+  $res = db_select('field_data_field_devices', 'fd')
+    ->condition('field_devices_target_id', $device_nid)
+    ->fields('fd', array('entity_id'))
+    ->execute();
+
+  foreach ($res as $r){
+    return $r->entity_id;
+  }
+}
+
+function _e_counter_create_xls_header($device_nid, $date){
+  $object = node_load(_e_counter_get_object_from_tid($device_nid));
+  $rows[] = "<Row>
+        <Cell ss:StyleID=\"caption\" ss:MergeAcross=\"12\">
+          <Data ss:Type=\"String\">Отчет тепловычислителя за $date</Data>
+        </Cell>
+      </Row>";
+  $addr = $object->field_object_address['und'][0]['value'];
+  $rows[] = "<Row>
+        <Cell ss:StyleID=\"Default\">
+          <Data ss:Type=\"String\">Адрес: $addr</Data>
+        </Cell>
+      </Row>";
+
+  $node = node_load($device_nid);
+  $cat_tid = $node->field_device_category['und'][0]['tid'];
+  $cat = taxonomy_term_load($cat_tid);
+  $rows[] = "<Row>
+        <Cell ss:StyleID=\"Default\">
+          <Data ss:Type=\"String\">Тип прибора: $cat->name</Data>
+        </Cell>
+      </Row>";
+  $device_serial = $node->field_device_serial['und'][0]['value'];
+  $rows[] = "<Row>
+        <Cell ss:StyleID=\"Default\">
+          <Data ss:Type=\"String\">Номер прибора: $device_serial</Data>
+        </Cell>
+      </Row>";
+  $rows[] = "<Row>
+        <Cell ss:StyleID=\"Default\">
+          <Data ss:Type=\"String\">Теплосистема: ???</Data>
+        </Cell>
+      </Row>";
+  $rows[] = "<Row></Row>";
+
+  return $rows;
+}
+
+function _e_counter_get_parameter_names($device_parameters){
+  $terms = taxonomy_term_load_multiple(array_keys($device_parameters));
+  $header = array();
+  foreach ($terms as $term){
+    $header[$term->tid] = $term->name;
+  }
+  asort($header);
+  return $header;
+}
+
+/*
+ * Нужно возвращать 2мерный массив. 2ой уровенб сожержит дату и данные
+ *  array(
+    'date' => '23.12.2013',
+    '4'=>1,
+    ......
+    '8'=>6
+  );
+ */
+function _e_counter_request_device_parameters($device_ip, $device_id, $device_category, $device_current_page_size, $device_archive_page_size, $device_parameters, $period, $date){
+  timer_start('timer');
+  libraries_load('phpmodbus');
+  $rows = array();
+  $modbus = new ModbusMaster($device_ip, "TCP");
+  $modbus->timeout_sec = 10;
+  if ($period == 'current'){
+    try {
+      // Читаем текущие параметры. В одном регистре 2 байта
+      $recData = $modbus->readMultipleRegisters($device_id, 0, $device_current_page_size/2);
+      $date = $recData[4] . '.' . $recData[5] . '.' . $recData[6];
+      if ($date == '1.1.1') {
+        watchdog('con_problem', 'Connection problem. Parameters: device IP - %ip, period - %period, date - %date', array('%ip' => $device_ip, '%period' => $period, '%date' => $date));
+        return array('error' => 'Нет связи с теплосчетчиком. Если ошибка повторяется свяжитесь с администратором объекта.');
+      }
+      $rows['date'] = format_date(REQUEST_TIME, 'custom', 'd.m.Y', 'Asia/Novokuznetsk');
+      // Загружаем данные о параметре. Вырезаем из общего массива данные нужного параметра и переводим их в число с плавающей точкой
+      foreach ($device_parameters as $parameter_tid => $parameter_name){
+        $parameter_term = taxonomy_term_load($parameter_tid);
+        $parameter_value_bytes = array_slice($recData, $parameter_term->field_address_controller_start['und'][0]['value'], $parameter_term->field_bytes_count['und'][0]['value']);
+        $rows[$parameter_term->tid] = round(PhpType::bytes2float($parameter_value_bytes,1), 4);
+      }
+      $rows = array($rows);
+    }
+    catch (Exception $e) {
+      // Print error information if any
+      $error = 'Ошибка при обращении к счетчику. Попробуйте еще раз через 10 секунд. <br> Код ошибки ' . $e->getMessage();
+      watchdog('error', $error);
+      timer_stop('timer');
+      return array('error' => $error);
+    }
+  }
+  else{
+    //получаем архивные данные
+    try {
+      switch ($period) {
+        case 1: $total_count_rec = 24;
+                $iteration_hours = 12*60*60;
+          break;
+        case 2: $total_count_rec = 7;
+                $iteration_hours = 7*24*60*60;
+          break;
+        case 3: $total_count_rec = 31;
+                $iteration_hours = 12*24*60*60;
+          break;
+        case 4: $total_count_rec = 12;
+                $iteration_hours = 12*31*24*60*60;
+          break;
+      }
+      $count_rec = 0;
+      $iteration = 0;
+      $hour = 0;
+      while ($count_rec <= $total_count_rec) {
+        //если суточный архив нужен текущий час
+        if ($iteration == 0){
+          if ($period == 1){
+            //если запрашиваем суточный архив за сегодняшнее число
+            if ($date == format_date(REQUEST_TIME, 'custom', 'Y-m-d')){
+              //получаем текущий час(без нуля в начале)
+              $hour = format_date(REQUEST_TIME, 'custom', 'G');
+            }
+          }
+          $date_timestamp = strtotime($date) + 60 * 60 * $hour;
+        }
+        else{
+          $date_timestamp = $date_timestamp - $iteration_hours;
+        }
+        /*
+         * форматируем дату из интерфейса
+         * отнимаем количество часов в итерации. Необходимо если мы не можем получить весь период за раз
+         * затем переводим дату обратно в строку и разбиваем на части
+        */
+
+        $new_date = date('Y-m-d G', $date_timestamp);
+        $date_arr = date_parse_from_format('Y-m-d G', $new_date);
+
+        //формируем параметры для запроса архива
+        //1 - ид прибора
+        //2 - адрес памяти
+        //3 - массив данных. первое число год +месяц, второе день+час, третье - тип архива
+        //    1 - сутки
+        //    2 - неделя
+        //    3 - месяц
+        //    4 - год
+        $p1 = ($date_arr['year']-2000) * 256 + $date_arr['month'];
+        $p2 = $date_arr['day'] * 256 + $date_arr['hour'];
+        $p3 = $period * 256;
+        // Read multiple registers
+        $recData = $modbus->writeMultipleRegisterCustom($device_id, 3, array($p1,$p2,$p3), array('INT', 'INT', 'INT'));
+        ++$iteration;
+        $archive_parameters = array_chunk($recData, $device_archive_page_size);
+        foreach ($archive_parameters as $archive_parameter){
+          $row = array();
+          $row['date'] = _get_date_from_parameters($archive_parameter);
+          if ($row['date'] == '01.01.201 01:00') {
+            watchdog('con_problem', 'Connection problem. Parameters: device IP - %ip, period - %period, date - %date', array('%ip' => $device_ip, '%period' => $period, '%date' => $date));
+            return array('error' => 'Нет связи с теплосчетчиком. Если ошибка повторяется свяжитесь с администратором объекта.');
+          }
+          // Загружаем данные о параметре. Вырезаем из общего массива данные нужного параметра и переводим их в число с плавающей точкой
+          foreach ($device_parameters as $parameter_tid => $parameter_name){
+            $parameter_term = taxonomy_term_load($parameter_tid);
+            if ($parameter_term->field_archive_address_controller['und'][0]['value'] != 0){
+              $parameter_value_bytes = array_slice($archive_parameter, $parameter_term->field_archive_address_controller['und'][0]['value'], $parameter_term->field_bytes_count['und'][0]['value']);
+              $row[$parameter_term->tid] = round(PhpType::bytes2float($parameter_value_bytes,1), 4);
+            }
+          }
+          $rows[] = $row;
+          ++$count_rec;
+          if ($count_rec >= $total_count_rec) break;
+        }
+        if ($count_rec >= $total_count_rec) break;
+      }
+    }
+    catch (Exception $e) {
+      // Print error information if any
+      $error = 'Ошибка при обращении к счетчику. Попробуйте еще раз через 10 секунд. <br> Код ошибки ' . $e->getMessage();
+      watchdog('error', $error);
+      timer_stop('timer');
+      return array('error' => $error);
+    }
+  }
+  timer_stop('timer');
+  return $rows;
+}
+
+/*
+ * Added test cron job
+ */
+function e_counter_cron(){
+  $data = _e_counter_request_device_parameters('46.232.202.232', 1, 2, 66, 48, array(
+      '4' => 4,
+      '17' => 17,
+      '9' => 9,
+      '5' => 5,
+      '11' => 11,
+      '7' => 7,
+      '6' => 6,
+      '12' => 12,
+      '8' => 8,
+      '15' => 15,
+      '13' => 13,
+      '10' => 10,
+      '16' => 16,
+      '14' => 14,
+
+  ),
+  'current', '2014-01-14');
+
+  if (!isset($data['error'])){
+    watchdog('cron_test', 'Successfully run test cron job at %date', array('%date' => format_date(REQUEST_TIME)));
+  }
+  else {
+    watchdog('cron_test', 'Failed run test cron job at %date. Error %e', array('%date' => format_date(REQUEST_TIME), '%e' => $data['error']));
+  }
+}
+
+function _get_date_from_parameters($archive_parameter){
+  if (strlen($archive_parameter[2]) == 1) $day = '0' . $archive_parameter[2];
+  else $day = $archive_parameter[2];
+
+  if (strlen($archive_parameter[1]) == 1) $month = '0' . $archive_parameter[1];
+  else $month = $archive_parameter[1];
+
+  if (strlen($archive_parameter[3]) == 1) $hour = '0' . $archive_parameter[3];
+  else $hour = $archive_parameter[3];
+
+  return $day . '.' . $month . '.20' . $archive_parameter[0] . ' ' . $hour . ':00';
+}
+
+/*
+ * Load modbus library
+ */
+function e_counter_libraries_info(){
+  // A very simple library. No changing APIs (hence, no versions), no variants.
+  // Expected to be extracted into 'sites/all/libraries/simple'.
+  $libraries['phpmodbus'] = array(
+    'name' => 'Phpmodbus library',
+    'vendor url' => 'https://code.google.com/p/phpmodbus/',
+    'download url' => 'https://code.google.com/p/phpmodbus/',
+    'files' => array(
+      'php' => array(
+        'ModbusMaster.php',
+      ),
+    ),
+    'version' => '1',
+  );
+
+  $libraries['php-excel'] = array(
+    'name' => 'Php Excel library',
+    'vendor url' => 'https://code.google.com/p/php-excel/',
+    'download url' => 'https://code.google.com/p/php-excel/',
+    'files' => array(
+      'php' => array(
+        'php-excel.class.php',
+      ),
+    ),
+    'version' => '1.1',
+  );
+  return $libraries;
+}
+
+/*
+ * Change footer to white color
+ */
+function e_counter_init(){
+  drupal_add_css('body, #page-wrapper, #footer-wrapper {background-color: white!important;} .breadcrumb {display: none;}', array('type' => 'inline'));
+}

@@ -1,0 +1,7 @@
+name = Energo counter
+description = "Логика для работы с теплосчетчиками"
+package = Other
+core = 7.x
+configure = admin/config/e_counter
+dependencies[] = libraries
+

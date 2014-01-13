@@ -1,0 +1,16 @@
+
+.date-padding{
+    padding-top: 0!important;
+}
+
+.form-type-date-popup label{
+    float:left;
+}
+
+.form-type-date-popup .description{
+    display: none;
+}
+
+h1, h2{
+    font-family: "Times New Roman"!important;
+}
