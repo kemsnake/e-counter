@@ -6,4 +6,4 @@ sites/*/files
 sites/*/private
 
 # Ignore IDE settings
-.idea
+.idea 
