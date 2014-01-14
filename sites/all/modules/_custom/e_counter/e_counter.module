@@ -476,7 +476,7 @@ function e_counter_cron(){
     watchdog('cron_test', 'Successfully run test cron job at %date', array('%date' => format_date(REQUEST_TIME)));
   }
   else {
-    watchdog('cron_test', 'Failed run test cron job at %date. Error %e', array('%date' => format_date(REQUEST_TIME), '%e' => $data['error']));
+    watchdog('cron_test', 'Failed run test cron job at %date. Error %e', array('%date' => format_date(REQUEST_TIME), '%e' => $data['error']), WATCHDOG_NOTICE);
   }
 }
 

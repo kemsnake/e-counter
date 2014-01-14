@@ -101,7 +101,7 @@ class ModbusMaster {
         }
     }
     // Socket settings
-    socket_set_option($this->sock, SOL_SOCKET, SO_SNDTIMEO, array('sec' => 2, 'usec' => 0));
+    socket_set_option($this->sock, SOL_SOCKET, SO_SNDTIMEO, array('sec' => 5, 'usec' => 0));
     socket_set_block($this->sock);
     // Connect the socket
     $result = @socket_connect($this->sock, $this->host, $this->port);
