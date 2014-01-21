@@ -31,8 +31,11 @@ function e_counter_node_view($node, $view_mode = 'full', $langcode = NULL) {
     $device_category = $node->field_device_category['und'][0]['tid'];
     $node->content['parameters_form'] = drupal_get_form('_e_counter_get_parameters_form', $device_ip, $device_id, $device_category, $node->nid);
     $node->content['parameters_form']['#weight'] = '10';
+    $node->title = '';
   }
-
+  if ($node->type == 'object'){
+    drupal_add_library('system', 'ui.tabs');
+  }
 }
 
 function _e_counter_get_parameters_form($form, &$form_state, $device_ip, $device_id, $device_category, $device_nid){
@@ -293,11 +296,6 @@ function _e_counter_create_xls_header($device_nid, $date){
   $rows[] = "<Row>
         <Cell ss:StyleID=\"Default\">
           <Data ss:Type=\"String\">Номер прибора: $device_serial</Data>
-        </Cell>
-      </Row>";
-  $rows[] = "<Row>
-        <Cell ss:StyleID=\"Default\">
-          <Data ss:Type=\"String\">Теплосистема: ???</Data>
         </Cell>
       </Row>";
   $rows[] = "<Row></Row>";

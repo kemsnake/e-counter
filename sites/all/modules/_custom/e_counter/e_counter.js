@@ -25,5 +25,15 @@
         })
     };
 
+    Drupal.behaviors.devicesTabs = {};
+
+    Drupal.behaviors.devicesTabs.attach = function (context, settings) {
+
+
+        $('#tabs', context)
+            .once('.tabs-processed')
+            .tabs();
+    };
+
 
 }(jQuery));

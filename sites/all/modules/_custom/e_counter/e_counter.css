@@ -14,3 +14,31 @@
 h1, h2{
     font-family: "Times New Roman"!important;
 }
+
+
+#tabs,
+#tabs .ui-widget-header,
+#tabs .ui-state-default,
+#tabs .ui-widget-content .ui-state-default,
+#tabs .ui-widget-header .ui-state-default{
+    border:none;
+    background:none;
+}
+
+
+#tabs .ui-state-active,
+#tabs .ui-widget-content .ui-state-active,
+#tabs .ui-widget-header .ui-state-active {
+    background: #eee;
+    border:none;
+    font-weight: bold;
+}
+
+.horizontal-tabs-processed .fieldset-wrapper,
+.horizontal-tabs-processed fieldset {
+    margin-top: 0px;
+}
+#tabs .ui-tabs-panel{
+    padding:0;
+}
+
