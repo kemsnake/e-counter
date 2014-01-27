@@ -451,7 +451,7 @@ function _e_counter_request_device_parameters($device_ip, $device_id, $device_ca
  * Added test cron job
  */
 function e_counter_cron(){
-  $data = _e_counter_request_device_parameters('46.232.202.232', 1, 2, 66, 48, array(
+  /*$data = _e_counter_request_device_parameters('46.232.202.232', 1, 2, 66, 48, array(
       '4' => 4,
       '17' => 17,
       '9' => 9,
@@ -475,7 +475,7 @@ function e_counter_cron(){
   }
   else {
     watchdog('cron_test', 'Failed run test cron job at %date. Error %e', array('%date' => format_date(REQUEST_TIME), '%e' => $data['error']), WATCHDOG_NOTICE);
-  }
+  }*/
 }
 
 function _get_date_from_parameters($archive_parameter){
